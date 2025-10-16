@@ -17,7 +17,7 @@ export default function Sidebar() {
         gap: "1rem",
       }}
     >
-      <Logo size={50} />
+      <Logo size={40} />
       <button
         style={{
           fontSize: "2.5rem",

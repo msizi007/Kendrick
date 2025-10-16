@@ -7,6 +7,34 @@ import MarkdownPreview from "@uiw/react-markdown-preview";
 interface Message {
   sender: "user" | "bot";
   text: string;
+  duration?: string;
+  tokensPerSecond?: number;
+  date?: string;
+  time?: string;
+}
+
+function formatTime(ns: number): string {
+  const units = [
+    { label: "hour", ms: 1000 * 60 * 60 },
+    { label: "minute", ms: 1000 * 60 },
+    { label: "second", ms: 1000 },
+    { label: "millisecond", ms: 1 },
+    { label: "microsecond", ms: 1 / 1000 },
+    { label: "nanosecond", ms: 1 / 1_000_000 },
+  ];
+
+  const ms = ns / 1_000_000; // Convert input nanoseconds to milliseconds
+
+  for (const unit of units) {
+    const value = ms / unit.ms;
+    if (value >= 1) {
+      const rounded = Math.round(value);
+      const label = rounded === 1 ? unit.label : `${unit.label}s`; // pluralize
+      return `${rounded} ${label}`;
+    }
+  }
+
+  return `${ns} nanoseconds`;
 }
 
 function App() {
@@ -14,7 +42,6 @@ function App() {
   const [chat, setChat] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const [showLoading, setShowLoading] = useState(false);
 
   useEffect(() => {
     // Auto scroll to bottom on new message
@@ -52,8 +79,15 @@ function App() {
           {
             sender: "bot",
             text: cleanResponse(data.response) || "No response.",
+            duration: formatTime(data.total_duration),
+            tokensPerSecond: Math.round(
+              (data.eval_count / data.eval_duration) * Math.pow(10, 9)
+            ),
+            date: data.created_at.split("T")[0],
+            time: data.created_at.split("T")[1].split(".")[0],
           },
         ]);
+        console.log("total duration: ", data);
       })
       .catch((err) => {
         console.error("Error:", err);
@@ -72,20 +106,21 @@ function App() {
       <Sidebar />
       <div
         className="w-100 d-flex flex-column justify-content-center align-items-center"
-        style={{ marginLeft: "5%", height: "100vh", overflowY: "auto" }}
+        style={{
+          marginLeft: "5%",
+          height: "90%",
+          overflowY: "auto",
+        }}
       >
         <h1>Kendrick AI</h1>
 
         <div
           style={{
             width: "70%",
-            maxHeight: "70vh",
-            overflowY: "auto",
-            border: "1px solid #ccc",
+            maxHeight: "100%",
             borderRadius: "1rem",
             padding: "1rem",
-            background: "#f8f9fa",
-            marginBottom: "1rem",
+            marginBottom: "10%",
           }}
         >
           {chat.map((msg, index) => (
@@ -101,12 +136,37 @@ function App() {
                   display: "inline-block",
                   padding: "0.75rem 1rem",
                   borderRadius: "1rem",
-                  background: msg.sender === "user" ? "#007bff" : "#e9ecef",
-                  color: msg.sender === "user" ? "#fff" : "#000",
                   maxWidth: "70%",
                 }}
               >
-                <MarkdownPreview source={msg.text} style={{ padding: 16 }} />
+                <MarkdownPreview
+                  source={msg.text}
+                  style={{
+                    paddingLeft: 16,
+                    backgroundColor: "white",
+                    color: "black",
+                  }}
+                />
+
+                {msg.sender === "bot" && (
+                  <>
+                    <hr className="my-2 mb-0" />
+                    <p
+                      className="m-0 py-2"
+                      style={{
+                        paddingLeft: 16,
+                        fontSize: ".9rem",
+                      }}
+                    >
+                      <p className="fw-bold m-0 p-0">
+                        Duration: {msg.duration}
+                      </p>
+                      <p className="fw-bold m-0 p-0">
+                        {msg.tokensPerSecond} tokens/sec
+                      </p>
+                    </p>
+                  </>
+                )}
               </span>
             </div>
           ))}
@@ -116,8 +176,10 @@ function App() {
 
         <div
           style={{
-            position: "relative",
-            width: "70%",
+            flex: 1,
+            position: "fixed",
+            bottom: "1rem",
+            width: "80%",
             display: "flex",
             gap: "1rem",
             alignItems: "center",
@@ -129,7 +191,6 @@ function App() {
               resize: "none",
               fontSize: "1rem",
               padding: "0.5rem",
-              flex: 1,
               borderRadius: "0.5rem",
             }}
             ref={searchRef}
